@@ -1,4 +1,3 @@
-from random import random
 import warnings
 from matplotlib import pyplot as plt
 import numpy as np
@@ -18,17 +17,17 @@ import dash
 import dash_bootstrap_components as dbc
 from dash import dcc
 from dash import html
-import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output
 from werkzeug.security import generate_password_hash, check_password_hash
 from io import BytesIO
+import poetry
+from random import random
 import poetry
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
 
 # Initialize Flask app
-# Initialize Dash app
 app_flask = Flask(__name__)
 app_flask.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
 
@@ -130,15 +129,15 @@ def update_output(value):
     return 'You have selected "{}"'.format(value)
 
 # Main function
-def main():
+def run_apps():
     # Run Flask and Dash apps
     app_flask.run(debug=True)
     app_dash.run_server(debug=True)
 
 # Entry point of the script
 if __name__ == "__main__":
-    # Call the main function
-    main()
+    # Call the run_apps function
+    run_apps()
 
 # Initialize Plotly notebook mode
 init_notebook_mode(connected=True)
@@ -155,9 +154,8 @@ temp = {
     "colors": px.colors.qualitative.Plotly
 }
 
-# Load datastock_prices.csv
-train_df = pd.read_csv(r"D:/NewFolder/stockmarket/data/train_data.csv", parse_dates=['Date'])
-stock_list = pd.read_pickle(r"D:/NewFolder/stockmarket/data/temp_data.csv")
+train_df = pd.read_csv(r"data/train_data.csv", parse_dates=['Date'])
+stock_list = pd.read_csv(r"data/temp_data.csv")
 
 # Display data information
 print("The training data begins on {} and ends on {}.\n".format(train_df.Date.min(), train_df.Date.max()))
@@ -181,126 +179,15 @@ def callback_graph(selected_dropdown_value):
         fig.update_layout(**temp["layout"])
         return fig
 
-def main():
+def main_app():
     # Run Flask and Dash apps
     app_flask.run(debug=True)
     app_dash.run_server(debug=True)
 
 # Entry point of the script
 if __name__ == "__main__":
-    # Call the main function
-    main()
-# No changes needed
-
-name = "flask-dashboard"
-version = "0.1.0"
-description = "Financial dashboard with Flask"
-authors = ["Flask Coder <flask.awesome@youremail.com>"]
-license = "MIT"
-
-# No changes needed
-# No changes needed
-
-python = "^3.9"
-Flask = "^1.1.2"
-pandas = "^1.2.1"
-matplotlib = "^3.3.3"
-
-# No changes needed
-
-flake8 = "^3.8.4"
-
-# No changes needed
-
-name = "flask-dashboard"
-version = "0.1.0"
-description = "Financial dashboard with Flask"
-authors = ["Flask Coder <flask.awesome@youremail.com>"]
-license = "MIT"
-
-python = "^3.9"
-Flask = "^1.1.2"
-pandas = "^1.2.1"
-matplotlib = "^3.3.3"
-
-flake8 = "^3.8.4"
-
-
-# No changes needed
-
-requires = ["poetry-core>=1.0.0"]
-requires = ["poetry-core>=1.0.0"]
-
-
-# Run the Dash app
-if __name__ == '__main__':
-    app_dash.run_server(debug=True)
-
-app = current_app
-matplotlib = "^3.3.3"
-
-
-
-def plot(prices):
-
-    prices = (
-        prices
-        .sort_index()
-        .apply(np.log)
-        .pipe(lambda x: (x - x.mean()) / x.std())
-    )
-    prices.plot(
-        title='Normalized Log Prices',
-        color='black',
-        alpha=0.5,
-        figsize=(10, 6)
-    )
-    plt.show()
-
-
-def plotly(prices):
-    layout = go.Layout(title='Normalized Log Prices')
-    fig = go.Figure(layout=layout)
-    for i, col in enumerate(prices.columns):
-        fig.add_trace(go.Scatter(x=prices.index, y=prices[col], mode='lines', name=col))
-    fig.show()
-
-
-# Create a Dash application
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server
-
-# Load data
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv')
-
-# Create app layout
-app.layout = html.Div(children=[
-    html.H1(children='Gapminder Data'),
-
-    html.Div(children='''
-        Dash: A web application framework for Python.
-    '''),
-
-    dcc.Graph(
-        id='example-graph',
-        figure={
-            'data': [
-                {'x': df[df['year'] == i]['gdpPercap'], 'y': df[df['year'] == i]['lifeExp'], 'text': df[df['year'] == i]['country'], 'mode': 'markers', 'name': str(i)} for i in df.year.unique()
-            ],
-            'layout': {
-                'title': 'Life Expectancy vs. GDP Per Capita',
-                'xaxis': {'title': 'GDP Per Capita'},
-                'yaxis': {'title': 'Life Expectancy'},
-                'hovermode': 'closest'
-            }
-        }
-    )
-])
-
-# Run the application
-if __name__ == '__main__':
-    app.run_server(debug=True)
+    # Call the main_app function
+    main_app()
 
 # Initialize Plotly notebook mode
 init_notebook_mode(connected=True)

@@ -1,0 +1,15 @@
+{
+    "extends": [
+        "development"
+    ],
+    "hints": {
+        "typescript-config/consistent-casing": "off"
+    },
+    "compilerOptions": {
+        "target": "es5",
+        "lib": ["dom", "es2015"],
+        "jsx": "react",
+        "strict": true,
+        "esModuleInterop": true
+    }
+}

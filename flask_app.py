@@ -2,7 +2,6 @@ from flask_mysqldb import MySQL
 import MySQLdb.cursors
 import re
 import hashlib
-from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -10,64 +9,90 @@ from plotly.offline import init_notebook_mode
 from plotly.subplots import make_subplots
 import plotly.graph_objects as go
 from flask import Flask, Response, current_app, flash, redirect, render_template, request, session, url_for
-from datetime import datetime
-import time
-import json
-import re
-import os
 import MySQLdb
 import dash
 from dash import html
 import dash_bootstrap_components as dbc
-from dash import dcc  # Update import statements
+from dash import dcc
 from dash.dependencies import Input, Output
 from werkzeug.security import generate_password_hash, check_password_hash
 from io import BytesIO
 
 
-data = {
-    "Date": pd.date_range(start="2024-01-01", end="2024-12-31"),
-    "Open": [100, 110, 95] * 121,
-    "High": [105, 115, 100] * 121,
-    "Low": [95, 105, 90] * 121,
-    "Close": [105, 115, 100] * 121,
-    "SectorName": ["Sector1", "Sector2", "Sector1"] * 121
-}
 
-
+# Initialize Flask app
 app = Flask(__name__)
+app.config['SECRET_KEY'] = b'_5#y2L"F4Q8z\n\xec]/'  # Set the secret key directly in the Flask app configuration
 
+class Dash:
+    def __init__(self):
+        self.secret_key = b'_5#y2L"F4Q8z\n\xec]/'
 
-# Change this to your secret key (it can be anything, it's for extra protection)
-app.secret_key = '139871'
-
-# Enter your database connection details below
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = ''
-app.config['MYSQL_DB'] = 'pythonlogin'
-
-# Intialize MySQL
+# Initialize MySQL
 mysql = MySQL(app)
 
-@app.route('/', methods=['GET', 'POST'])
-def login():
-    msg = ''
-    if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
-        username = request.form['username']
-        password = request.form['password']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM accounts WHERE username = %s AND password = %s', (username, password,))
-        account = cursor.fetchone()
-        if account:
-            session['loggedin'] = True
-            session['id'] = account['id']
-            session['username'] = account['username']
-            return 'Logged in successfully!'
-        else:
-            msg = 'Incorrect username/password!'
-    return render_template('index.html', msg=msg)
+def connect_db():
+    try:
+        connection = mysql.connection
+        return connection
+    except Exception as e:
+        print("Error connecting to MySQL:", e)
+        return None
 
+# Initialize Dash app
+app_dash = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+# Ensure all arrays have the same length
+num_days = 121
+data = {
+    "Date": pd.date_range(start="2024-01-01", periods=num_days),
+    "Open": [100] * num_days,  # Adjust the values to have the same length
+    "High": [105] * num_days,  # Adjust the values to have the same length
+    "Low": [95] * num_days,    # Adjust the values to have the same length
+    "Close": [105] * num_days,  # Adjust the values to have the same length
+    "SectorName": ["Sector1"] * num_days  # Adjust the values to have the same length
+}
+
+train_df = pd.DataFrame(data)
+
+# Callback function for Dash app
+@app_dash.callback(
+    Output('candlestick-graph', 'figure'),
+    [Input('dropdown', 'value')]
+)
+def update_graph(selected_dropdown_value):
+    fig = px.line(train_df, x="Date", y=selected_dropdown_value)
+    return fig
+
+# Run Flask and Dash apps
+if __name__ == '__main__':
+    app.run(debug=True)
+    app_dash.run_server(debug=True)
+@app.route('/login', methods=['POST'])
+def login():
+    try:
+        if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+            username = request.form['username']
+            password = request.form['password']
+            db = connect_db()
+            if db:
+                cursor = db.cursor()
+                cursor.execute('SELECT * FROM accounts WHERE username = %s', (username,))
+                account = cursor.fetchone()
+                if account and check_password_hash(account['password'], password):
+                    session['loggedin'] = True
+                    session['id'] = account['id']
+                    session['username'] = account['username']
+                    return 'Logged in successfully!'
+                else:
+                    flash('Incorrect username/password!', 'error')
+            else:
+                flash('Error connecting to the database!', 'error')
+    except Exception as e:
+        print("Error during login:", e)
+        flash('An unexpected error occurred!', 'error')
+    return render_template('index.html')
+pass
 @app.route('/logout')
 def logout():
     session.pop('loggedin', None)
@@ -78,30 +103,29 @@ def logout():
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
-    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form:
-        username = request.form['username']
-        password = request.form['password']
-        email = request.form['email']
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM accounts WHERE username = %s', (username,))
-        account = cursor.fetchone()
-        if account:
-            msg = 'Account already exists!'
-        elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
-            msg = 'Invalid email address!'
-        elif not re.match(r'[A-Za-z0-9]+', username):
-            msg = 'Username must contain only characters and numbers!'
-        elif not username or not password or not email:
-            msg = 'Please fill out the form!'
-        else:
-            hash = password + app.secret_key
-            hash = hashlib.sha1(hash.encode())
-            password = hash.hexdigest()
-            cursor.execute('INSERT INTO accounts VALUES (NULL, %s, %s, %s)', (username, password, email,))
-            mysql.connection.commit()
-            msg = 'You have successfully registered!'
-    return render_template('register.html', msg=msg)
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        email = request.form.get('email')
 
+        if username and password and email:
+            if re.match(r'[^@]+@[^@]+\.[^@]+', email) and re.match(r'[A-Za-z0-9]+', username):
+                db = connect_db()
+                if db:
+                    with db.cursor(MySQLdb.cursors.DictCursor) as cursor:
+                        cursor.execute('SELECT * FROM accounts WHERE username = %s', (username,))
+                        if cursor.fetchone():
+                            msg = 'Account already exists!'
+                        else:
+                            hashed_password = hashlib.sha1(password.encode()).hexdigest()
+                            cursor.execute('INSERT INTO accounts (username, password, email) VALUES (%s, %s, %s)',
+                                           (username, hashed_password, email))
+                            db.commit()
+                            msg = 'You have successfully registered!'
+            else:
+                msg = 'Invalid username or email' if not re.match(r'[A-Za-z0-9]+', username) else 'Please fill out the form!'
+
+    return render_template('register.html', msg=msg)
 @app.route('/home')
 def home():
     if 'loggedin' in session:
@@ -111,14 +135,13 @@ def home():
 @app.route('/profile')
 def profile():
     if 'loggedin' in session:
-        cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
-        cursor.execute('SELECT * FROM accounts WHERE id = %s', (session['id'],))
-        account = cursor.fetchone()
-        return render_template('profile.html', account=account)
+        db = connect_db()
+        if db:
+            cursor = db.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM accounts WHERE id = %s', (session['id'],))
+            account = cursor.fetchone()
+            return render_template('profile.html', account=account)
     return redirect(url_for('login'))
-
-if __name__ == '__main__':
-    app.run(debug=True)
 
 app_dash = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
@@ -141,12 +164,6 @@ def main():
     app_dash.run(debug=True)
     app_dash.run_server(debug=True)
 
-# Entry point of the script
-if __name__ == "__main__":
-    # Call the main function
-    main()
-# No changes needed
-
 name = "flask-dashboard"
 version = "0.1.0"
 description = "Financial dashboard with Flask"
@@ -185,77 +202,9 @@ flake8 = "^3.8.4"
 
 requires = ["poetry-core>=1.0.0"]
 requires = ["poetry-core>=1.0.0"]
-
-
-# Run the Dash app
-if __name__ == '__main__':
-    app_dash.run_server(debug=True)
 
 app = current_app
 matplotlib = "^3.3.3"
-
-
-
-def plot(prices):
-
-    prices = (
-        prices
-        .sort_index()
-        .apply(np.log)
-        .pipe(lambda x: (x - x.mean()) / x.std())
-    )
-    prices.plot(
-        title='Normalized Log Prices',
-        color='black',
-        alpha=0.5,
-        figsize=(10, 6)
-    )
-    plt.show()
-
-
-def plotly(prices):
-    layout = go.Layout(title='Normalized Log Prices')
-    fig = go.Figure(layout=layout)
-    for i, col in enumerate(prices.columns):
-        fig.add_trace(go.Scatter(x=prices.index, y=prices[col], mode='lines', name=col))
-    fig.show()
-
-
-# Create a Dash application
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server
-
-# Load data
-df = pd.read_csv('https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv')
-
-# Create app layout
-app.layout = html.Div(children=[
-    html.H1(children='Gapminder Data'),
-
-    html.Div(children='''
-        Dash: A web application framework for Python.
-    '''),
-
-    dcc.Graph(
-        id='example-graph',
-        figure={
-            'data': [
-                {'x': df[df['year'] == i]['gdpPercap'], 'y': df[df['year'] == i]['lifeExp'], 'text': df[df['year'] == i]['country'], 'mode': 'markers', 'name': str(i)} for i in df.year.unique()
-            ],
-            'layout': {
-                'title': 'Life Expectancy vs. GDP Per Capita',
-                'xaxis': {'title': 'GDP Per Capita'},
-                'yaxis': {'title': 'Life Expectancy'},
-                'hovermode': 'closest'
-            }
-        }
-    )
-])
-
-# Run the application
-if __name__ == '__main__':
-    app.run_server(debug=True)
 
 # Initialize Plotly notebook mode
 init_notebook_mode(connected=True)
@@ -296,18 +245,15 @@ app.layout = html.Div([
     Output('candlestick-graph', 'figure'),
     [Input('dropdown', 'value')]
 )
-def update_graph(selected_dropdown_value):
-    # Assuming train_df is your DataFrame
-    fig = px.line(train_df, x="Date", y=selected_dropdown_value)
-    return fig
-
-# Run the app
-if __name__ == '__main__':
-    app.run_server(debug=True)
-
-
 # Display columns present in train_df
-print("Columns present in train_df:", train_df.columns)
+@app.callback(
+    Output('candlestick-graph', 'figure'),
+    [Input('dropdown', 'value')]
+)
+def update_graph_fixed(selected_stock):
+    print("Columns present in train_df:", train_df.columns)
+    # Rest of callback function code
+
 
 # Check if the 'Name' column exists in the DataFrame
 if 'Name' in train_df.columns:
@@ -560,11 +506,13 @@ fig.update_layout(template=temp, title='Stock Price Movements by Sector',
                   yaxis=dict(title='Stock Price'))
 fig.show()
 
+from flask import Flask
+
 app = Flask(__name__, template_folder='templates')
 
 @app.route('/')
 def index():
     return render_template('index.html')
-
+# Run the app
 if __name__ == '__main__':
     app.run(debug=True)
